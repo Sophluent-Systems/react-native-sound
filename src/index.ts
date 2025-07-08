@@ -5,8 +5,13 @@ import {
   Platform,
 } from "react-native";
 
-const IsAndroid = Platform.OS === "android";
+// Type declarations for global variables and require function
+declare global {
+  const __turboModuleProxy: any;
+  function require(module: string): any;
+}
 
+const IsAndroid = Platform.OS === "android";
 const IsWindows = Platform.OS === "windows";
 
 const LINKING_ERROR =
@@ -18,8 +23,10 @@ const LINKING_ERROR =
 // @ts-expect-error
 const SoundModule = global.__turboModuleProxy
   ? IsAndroid
-    ? require("./NativeSoundAndroid").default
-    : require("./NativeSoundIOS").default
+    ? // eslint-disable-next-line @typescript-eslint/no-var-requires
+      require("./NativeSoundAndroid").default
+    : // eslint-disable-next-line @typescript-eslint/no-var-requires
+      require("./NativeSoundIOS").default
   : NativeModules.RNSound;
 
 const RNSound =
@@ -43,7 +50,7 @@ interface SoundOptionTypes {
   loadSync: boolean;
 }
 
-const isRelativePath = (path: string) => {
+const isRelativePath = (path: string): boolean => {
   return !/^(\/|http(s?)|asset|file)/.test(path);
 };
 
@@ -102,23 +109,24 @@ class Sound {
       options ?? {},
       (error: string, props: SoundProps) => {
         if (props) {
-          if (typeof props.duration === "number") {
-            this._duration = props.duration;
+          const { duration, numberOfChannels } = props;
+          if (typeof duration === "number") {
+            this._duration = duration;
           }
-          if (typeof props.numberOfChannels === "number") {
-            this._numberOfChannels = props.numberOfChannels;
+          if (typeof numberOfChannels === "number") {
+            this._numberOfChannels = numberOfChannels;
           }
         }
         if (error === null) {
           this._loaded = true;
           this.registerOnPlay();
         }
-        onError && onError(error, props);
+        onError?.(error, props);
       }
     );
   }
 
-  private registerOnPlay() {
+  private registerOnPlay = (): void => {
     if (this.onPlaySubscription) {
       return;
     }
@@ -126,22 +134,21 @@ class Sound {
     if (!IsWindows) {
       this.onPlaySubscription = eventEmitter.addListener(
         "onPlayChange",
-        (param: { isPlaying: boolean; playerKey: number }) => {
-          const { isPlaying, playerKey } = param;
+        ({ isPlaying, playerKey }: { isPlaying: boolean; playerKey: number }) => {
           if (playerKey === this._key) {
             this._playing = isPlaying;
           }
         }
       );
     }
-  }
+  };
 
-  private calculateRelativeVolume(volume: number, pan: number): number {
+  private calculateRelativeVolume = (volume: number, pan: number): number => {
     const relativeVolume = volume * (1 - Math.abs(pan));
     return Number(relativeVolume.toFixed(1));
-  }
+  };
 
-  private setAndroidVolumes() {
+  private setAndroidVolumes = (): void => {
     if (this._pan) {
       const relativeVolume = this.calculateRelativeVolume(
         this._volume,
@@ -155,53 +162,53 @@ class Sound {
     } else {
       RNSound.setVolume(this._key, this._volume, this._volume);
     }
-  }
+  };
 
-  public isLoaded(): boolean {
+  public isLoaded = (): boolean => {
     return this._loaded;
-  }
+  };
 
-  public play(onEnd?: (successfully: boolean) => void): Sound {
+  public play = (onEnd?: (successfully: boolean) => void): Sound => {
     if (this._loaded) {
       RNSound.play(
         this._key,
-        (successfully: boolean) => onEnd && onEnd(successfully)
+        (successfully: boolean) => onEnd?.(successfully)
       );
     } else {
-      onEnd && onEnd(false);
+      onEnd?.(false);
     }
     return this;
-  }
+  };
 
-  public pause(callback?: () => void): Sound {
+  public pause = (callback?: () => void): Sound => {
     if (this._loaded) {
       RNSound.pause(this._key, () => {
         this._playing = false;
-        callback && callback();
+        callback?.();
       });
     }
     return this;
-  }
+  };
 
-  public stop(callback?: () => void): Sound {
+  public stop = (callback?: () => void): Sound => {
     if (this._loaded) {
       RNSound.stop(this._key, () => {
         this._playing = false;
-        callback && callback();
+        callback?.();
       });
     }
     return this;
-  }
+  };
 
-  public reset(): Sound {
+  public reset = (): Sound => {
     if (this._loaded && IsAndroid) {
       RNSound.reset(this._key);
       this._playing = false;
     }
     return this;
-  }
+  };
 
-  public release(): Sound {
+  public release = (): Sound => {
     if (this._loaded) {
       RNSound.release(this._key);
       this._loaded = false;
@@ -210,33 +217,33 @@ class Sound {
       }
     }
     return this;
-  }
+  };
 
-  public getFilename(): string {
+  public getFilename = (): string => {
     return this._filename;
-  }
+  };
 
-  public getDuration(): number {
+  public getDuration = (): number => {
     return this._duration;
-  }
+  };
 
-  public getNumberOfChannels(): number {
+  public getNumberOfChannels = (): number => {
     return this._numberOfChannels;
-  }
+  };
 
-  public getVolume(): number {
+  public getVolume = (): number => {
     return this._volume;
-  }
+  };
 
-  public getSpeed(): number {
+  public getSpeed = (): number => {
     return this._speed;
-  }
+  };
 
-  public getPitch(): number {
+  public getPitch = (): number => {
     return this._pitch;
-  }
+  };
 
-  public setVolume(value: number): Sound {
+  public setVolume = (value: number): Sound => {
     this._volume = value;
     if (this._loaded) {
       if (IsAndroid) {
@@ -246,9 +253,9 @@ class Sound {
       }
     }
     return this;
-  }
+  };
 
-  public setPan(value: number): Sound {
+  public setPan = (value: number): Sound => {
     this._pan = value;
     if (this._loaded) {
       if (IsWindows) {
@@ -260,31 +267,31 @@ class Sound {
       }
     }
     return this;
-  }
+  };
 
-  public getSystemVolume(callback: (volume: number) => void): Sound {
+  public getSystemVolume = (callback: (volume: number) => void): Sound => {
     if (!IsWindows) {
       RNSound.getSystemVolume(callback);
     }
     return this;
-  }
+  };
 
-  public setSystemVolume(value: number): Sound {
+  public setSystemVolume = (value: number): Sound => {
     if (IsAndroid) {
       RNSound.setSystemVolume(value);
     }
     return this;
-  }
+  };
 
-  public getPan(): number {
+  public getPan = (): number => {
     return this._pan;
-  }
+  };
 
-  public getNumberOfLoops(): number {
+  public getNumberOfLoops = (): number => {
     return this._numberOfLoops;
-  }
+  };
 
-  public setNumberOfLoops(value: number): Sound {
+  public setNumberOfLoops = (value: number): Sound => {
     this._numberOfLoops = value;
     if (this._loaded) {
       if (IsAndroid || IsWindows) {
@@ -294,87 +301,87 @@ class Sound {
       }
     }
     return this;
-  }
+  };
 
-  public setSpeed(value: number): Sound {
+  public setSpeed = (value: number): Sound => {
     this._speed = value;
     if (this._loaded && !IsWindows) {
       RNSound.setSpeed(this._key, value);
     }
     return this;
-  }
+  };
 
-  public setPitch(value: number): Sound {
+  public setPitch = (value: number): Sound => {
     this._pitch = value;
     if (this._loaded && IsAndroid) {
       RNSound.setPitch(this._key, value);
     }
     return this;
-  }
+  };
 
-  public getCurrentTime(callback: (time: number) => void): void {
+  public getCurrentTime = (callback: (time: number) => void): void => {
     if (this._loaded) {
       RNSound.getCurrentTime(this._key, callback);
     }
-  }
+  };
 
-  public setCurrentTime(value: number): Sound {
+  public setCurrentTime = (value: number): Sound => {
     if (this._loaded) {
       RNSound.setCurrentTime(this._key, value);
     }
     return this;
-  }
+  };
 
   // android only
-  public setSpeakerphoneOn(value: boolean): void {
+  public setSpeakerphoneOn = (value: boolean): void => {
     if (IsAndroid) {
       RNSound.setSpeakerphoneOn(this._key, value);
     }
-  }
+  };
 
   // ios only
-  public static setCategory(
+  public static setCategory = (
     value: string,
     mixWithOthers: boolean = false
-  ): void {
+  ): void => {
     if (!IsWindows) {
       RNSound.setCategory(value, mixWithOthers);
     }
-  }
+  };
 
-  public isPlaying(): boolean {
+  public isPlaying = (): boolean => {
     return this._playing;
-  }
+  };
 
-  public static enableInSilenceMode(enabled: boolean): void {
+  public static enableInSilenceMode = (enabled: boolean): void => {
     if (!IsAndroid && !IsWindows) {
       RNSound.enableInSilenceMode(enabled);
     }
-  }
+  };
 
-  public static setActive(value: boolean): void {
+  public static setActive = (value: boolean): void => {
     if (!IsAndroid && !IsWindows) {
       RNSound.setActive(value);
     }
-  }
+  };
 
-  public static setMode(value: string): void {
+  public static setMode = (value: string): void => {
     if (!IsAndroid && !IsWindows) {
       RNSound.setMode(value);
     }
-  }
+  };
 
-  public static enable(enable: boolean): void {
+  public static enable = (enable: boolean): void => {
     if (!IsAndroid && !IsWindows) {
       RNSound.enable(enable);
     }
-  }
+  };
 
-  public static setSpeakerPhone(value: boolean): void {
+  public static setSpeakerPhone = (value: boolean): void => {
     if (!IsAndroid && !IsWindows) {
       RNSound.setSpeakerPhone(value);
     }
-  }
+  };
 
   public static MAIN_BUNDLE = IsAndroid
     ? ""
@@ -389,4 +396,5 @@ class Sound {
     ? ""
     : RNSound.getDirectories().NSCachesDirectory;
 }
+
 export default Sound;

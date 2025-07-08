@@ -115,7 +115,7 @@ First you'll need to add audio files to your project.
 
 ```js
 // Import the react-native-sound module
-var Sound = require('react-native-sound');
+import Sound from 'react-native-sound';
 
 // Enable playback in silence mode
 Sound.setCategory('Playback');
